@@ -1,7 +1,9 @@
-﻿using System;
+﻿using HtmlAgilityPack;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
@@ -25,6 +27,27 @@ namespace HtmlAgilityPackSample
         public MainPage()
         {
             this.InitializeComponent();
+        }
+        protected async override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            base.OnNavigatedTo(e);
+            using (var client = new HttpClient())
+            {
+                var htmlString = await client.GetStringAsync("http://www.imdb.com/movies-in-theaters/");
+                HtmlDocument htmlDocument = new HtmlDocument();
+                htmlDocument.LoadHtml(htmlString);
+
+                List<Movie> movies = new List<Movie>();
+                foreach (var div in htmlDocument.DocumentNode.Descendants().Where(i => i.Name == "div" && i.GetAttributeValue("class", "").StartsWith("list_item")))
+                {
+                    Movie newMovie = new Movie();
+                    newMovie.Cover = div.Descendants().Where(i => i.Name == "div" && i.GetAttributeValue("class", "") == "image").FirstOrDefault().Descendants().Where(i => i.Name == "img").FirstOrDefault().GetAttributeValue("src", "");
+                    newMovie.Title = div.Descendants().Where(i => i.Name == "h4" && i.GetAttributeValue("itemprop", "") == "name").FirstOrDefault().InnerText.Trim();
+                    newMovie.Summary = div.Descendants().Where(i => i.Name == "div" && i.GetAttributeValue("class", "") == "outline").FirstOrDefault().InnerText.Trim();
+                    movies.Add(newMovie);
+                }
+                lstMovies.ItemsSource = movies;
+            }
         }
     }
 }
